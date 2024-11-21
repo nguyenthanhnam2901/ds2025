@@ -9,6 +9,6 @@ Students are expected to:
 Student Info
 =========================
 
-* Student Name: Nguyen Tuan Dung
-* Student ID: 22BI13107
+* Student Name: Nguyen Thanh Nam
+* Student ID: 22BI13325
 * Student Group ID: Not-for-now
