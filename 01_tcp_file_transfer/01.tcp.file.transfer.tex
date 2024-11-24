@@ -1,0 +1,167 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+\title{File Transfer Over TCP/IP Using Sockets}
+\author{Nguyen Thanh Nam - 22BI13325}
+\date{}  % This line ensures that no date is included
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+This report is about a file transfer system over TCP/IP using sockets. the system involves two components: a client and a server. The client sends a file in chunks to the server, which receives and stores it on disk. 
+
+\section{Protocol Design}
+The communication between the client and server is based on the following protocol:
+
+\begin{itemize}
+    \item \textbf{Client Side:}
+    \begin{itemize}
+        \item Reads the file to be transferred.
+        \item Establishes a TCP connection to the server.
+        \item Sends the file in chunks (1024 bytes).
+        \item Closes the connection once the file is fully sent.
+    \end{itemize}
+    \item \textbf{Server Side:}
+    \begin{itemize}
+        \item Listens for incoming client connections on a specified port.
+        \item Receives the file in chunks.
+        \item Writes the received data to a file on disk.
+        \item Closes the connection once the file is fully received.
+    \end{itemize}
+\end{itemize}
+
+\clearpage
+\section{System Organization}
+
+\begin{verbatim}
++--------------------+      (connect)           +--------------------+
+|                    | <----------------------> |                    |
+|    Client          |      File Transfer       |    Server          |
+|                    |  (send file chunks)      |                    |
++--------------------+ <----------------------> +--------------------+
+       |                                                   |
+       | (opens file, sends data in chunks)                |
+       |                                                   |
+       v                                                   v
++---------------------+                          +-----------------------------+
+|  File: example.jpg  |                          |  File: received_example.jpg |
++---------------------+                          +-----------------------------+
+\end{verbatim}
+
+\subsection{Detailed Client-Server Interaction}
+The following is a step-by-step description of how the client and server interact during the file transfer:
+
+\begin{verbatim}
+Client                                   Server
+-----------------------------------------------
+open_clientfd -> connect                wait for connection
+send file in chunks                    accept connection
+-----------------------------------------------
+write chunk -> send                    read chunk -> receive
+-----------------------------------------------
+write chunk -> send                    write to file
+-----------------------------------------------
+close connection                       close connection
+\end{verbatim}
+
+\clearpage
+\section{Code Implementation}
+
+\subsection{Client Code}
+Below is the Python code for the client that reads a file and sends it to the server.
+
+\begin{verbatim}
+import socket
+
+SERVER_HOST = '127.0.0.1'  
+SERVER_PORT = 5001       
+BUFFER_SIZE = 1024        
+INPUT_FILE = "example.jpg" 
+
+def send_file():
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.connect((SERVER_HOST, SERVER_PORT))
+    print(f"[*] Connected to {SERVER_HOST}:{SERVER_PORT}")
+
+    with open(INPUT_FILE, "rb") as f:
+        print(f"[*] Sending {INPUT_FILE}...")
+        while (data := f.read(BUFFER_SIZE)):
+            client_socket.sendall(data)
+
+    print("[+] File sent successfully.")
+    
+    client_socket.close()
+    print("[*] Connection closed.")
+
+if __name__ == "__main__":
+    send_file()
+
+\end{verbatim}
+
+\clearpage
+\subsection{Server Code}
+Below is the Python code for the server that listens for incoming connections and saves the received file.
+
+\begin{verbatim}
+import socket
+
+SERVER_HOST = '0.0.0.0' 
+SERVER_PORT = 5001       
+BUFFER_SIZE = 1024       
+OUTPUT_FILE = "received_example.jpg"  
+
+def start_server():
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_socket.bind((SERVER_HOST, SERVER_PORT))
+    server_socket.listen(1)
+    print(f"[*] Listening on {SERVER_HOST}:{SERVER_PORT}...")
+
+    client_socket, client_address = server_socket.accept()
+    print(f"[+] Accepted connection from {client_address}")
+
+    with open(OUTPUT_FILE, "wb") as f:
+        print("[*] Receiving file...")
+        while True:
+            data = client_socket.recv(BUFFER_SIZE)
+            if not data:
+                break
+            f.write(data)
+
+    print(f"[+] File received and saved as {OUTPUT_FILE}")
+
+    client_socket.close()
+    server_socket.close()
+    print("[*] Connection closed.")
+
+if __name__ == "__main__":
+    start_server()
+\end{verbatim}
+
+\clearpage
+\section{Who Does What}
+\begin{itemize}
+    \item \textbf{Client:}
+    \begin{itemize}
+        \item Opens the file to be sent.
+        \item Establishes a TCP connection to the server.
+        \item Sends the file in chunks (1024 bytes).
+        \item Closes the connection after sending the file.
+    \end{itemize}
+    \item \textbf{Server:}
+    \begin{itemize}
+        \item Listens for incoming client connections.
+        \item Receives the file in chunks.
+        \item Writes the received chunks to the disk.
+        \item Closes the connection once the file transfer is complete.
+    \end{itemize}
+\end{itemize}
+
+\section{Conclusion}
+This implements a simple file transfer protocol over TCP/IP using sockets. The client sends the file in chunks, and the server receives the file and stores it on disk. This basic implementation can be extended with additional features such as file validation, error handling, and encryption to secure file transfers.
+
+\end{document}
