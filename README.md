@@ -11,4 +11,4 @@ Student Info
 
 * Student Name: Nguyen Thanh Nam
 * Student ID: 22BI13325
-* Student Group ID: Not-for-now
+* Student Group ID: 3
