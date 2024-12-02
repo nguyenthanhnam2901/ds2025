@@ -1,24 +1,41 @@
 import socket
+import os
 
-SERVER_HOST = '127.0.0.1'  
-SERVER_PORT = 5001       
-BUFFER_SIZE = 1024        
-INPUT_FILE = "example.jpg" 
+SERVER_HOST = '127.0.0.1'
+SERVER_PORT = 5000
+BUFFER_SIZE = 1024
+CLIENT_DIRECTORY = './open_clientfd'
 
-def send_file():
+def start_client():
+    os.makedirs(CLIENT_DIRECTORY, exist_ok=True)
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((SERVER_HOST, SERVER_PORT))
-    print(f"[*] Connected to {SERVER_HOST}:{SERVER_PORT}")
-
-    with open(INPUT_FILE, "rb") as f:
-        print(f"[*] Sending {INPUT_FILE}...")
-        while (data := f.read(BUFFER_SIZE)):
-            client_socket.sendall(data)
-
-    print("[+] File sent successfully.")
-
+    print(f"Connected to server at {SERVER_HOST}:{SERVER_PORT}")
+    
+    file_list = client_socket.recv(BUFFER_SIZE).decode()
+    print("Available files:\n" + file_list)
+    
+    while True:
+        requested_file = input("Enter the file name to download (or 'exit' to quit): ").strip()
+        client_socket.send(requested_file.encode())
+        if requested_file.lower() == 'exit':
+            print("Exiting...")
+            break
+        
+        response = client_socket.recv(BUFFER_SIZE).decode()
+        if response == "OK":
+            file_path = os.path.join(CLIENT_DIRECTORY, requested_file)
+            with open(file_path, 'wb') as f:
+                print(f"Downloading '{requested_file}'...")
+                while chunk := client_socket.recv(BUFFER_SIZE):
+                    f.write(chunk)
+                    if len(chunk) < BUFFER_SIZE: 
+                        break
+            print(f"File '{requested_file}' downloaded successfully.")
+        else:
+            print(response) 
+    
     client_socket.close()
-    print("[*] Connection closed.")
 
 if __name__ == "__main__":
-    send_file()
+    start_client()

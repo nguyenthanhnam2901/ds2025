@@ -1,167 +1,164 @@
 \documentclass{article}
-\usepackage{amsmath}
 \usepackage{graphicx}
-\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage[a4paper, left=1in, right=1in, top=1in, bottom=1in]{geometry}  % Adjust margins here
 
-\title{File Transfer Over TCP/IP Using Sockets}
-\author{Nguyen Thanh Nam - 22BI13325}
-\date{}  % This line ensures that no date is included
+\lstset{
+    basicstyle=\ttfamily\footnotesize,
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!70!black},
+    stringstyle=\color{red},
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    tabsize=4,
+    showstringspaces=false,
+    captionpos=b
+}
+
+\title{TCP File Transfer Protocol}
+\author{Distributed Systems Practical}
+\date{}
 
 \begin{document}
 
 \maketitle
 
-\section{Introduction}
-This report is about a file transfer system over TCP/IP using sockets. the system involves two components: a client and a server. The client sends a file in chunks to the server, which receives and stores it on disk. 
-
 \section{Protocol Design}
-The communication between the client and server is based on the following protocol:
-
+Our TCP-based file transfer protocol is designed to allow clients to:
 \begin{itemize}
-    \item \textbf{Client Side:}
-    \begin{itemize}
-        \item Reads the file to be transferred.
-        \item Establishes a TCP connection to the server.
-        \item Sends the file in chunks (1024 bytes).
-        \item Closes the connection once the file is fully sent.
-    \end{itemize}
-    \item \textbf{Server Side:}
-    \begin{itemize}
-        \item Listens for incoming client connections on a specified port.
-        \item Receives the file in chunks.
-        \item Writes the received data to a file on disk.
-        \item Closes the connection once the file is fully received.
-    \end{itemize}
+    \item List available files on the server.
+    \item Request specific files for download.
+    \item Download files reliably using TCP.
+    \item Exit the connection gracefully, signaling the server to shut down if needed.
 \end{itemize}
 
 \clearpage
+\subsection{}{Protocol Design Diagram}
+
+\begin{verbatim}
++---------------------------+                          +---------------------------+
+|          Client           |                          |          Server           |
++---------------------------+                          +---------------------------+
+| 1. Create socket          |                          | 1. Create socket          |
+|                           |                          | 2. Bind socket to address |
+|                           |                          | 3. Start listening        |
+|---------------------------|                          |---------------------------|
+| 2. Connect to server      | -----------------------> | 4. Accept connection      |
+|                           | Connection Established   |                           |
+|                           | <----------------------- |                           |
+|---------------------------|                          |---------------------------|
+| 3. Receive file list      | <----------------------- | 5. Send file list         |
+| (Display files to user)   |                          |                           |
+|---------------------------|                          |---------------------------|
+| 4. Request file name      | -----------------------> | 6. Check file existence   |
+|                           |                          | If exists:                |
+|                           |                          |    - Respond "OK"         |
+|                           |                          |    - Transfer file chunks |
+|                           |                          | Else:                     |
+|                           |                          |    - Respond "File Not    |
+|                           |                          |       Found"              |
+| Receive file or error     | <----------------------- |                           |
+|---------------------------|                          |---------------------------|
+| 5. Save file locally      |                          |                           |
+|                           |                          |                           |
+|---------------------------|                          |---------------------------|
+| 6. Send "exit" command    | -----------------------> | 7. Close client socket    |
+| (Terminate session)       |                          |                           |
+|                           |                          |                           |
+|---------------------------|                          |---------------------------|
+| Close client socket       |                          | 8. Optionally shut down   |
+| Exit program              |                          | the server if required.   |
++---------------------------+                          +---------------------------+
+\end{verbatim}
+
 \section{System Organization}
-
-\begin{verbatim}
-+--------------------+      (connect)           +--------------------+
-|                    | <----------------------> |                    |
-|    Client          |      File Transfer       |    Server          |
-|                    |  (send file chunks)      |                    |
-+--------------------+ <----------------------> +--------------------+
-       |                                                   |
-       | (opens file, sends data in chunks)                |
-       |                                                   |
-       v                                                   v
-+---------------------+                          +-----------------------------+
-|  File: example.jpg  |                          |  File: received_example.jpg |
-+---------------------+                          +-----------------------------+
-\end{verbatim}
-
-\subsection{Detailed Client-Server Interaction}
-The following is a step-by-step description of how the client and server interact during the file transfer:
-
-\begin{verbatim}
-Client                                   Server
------------------------------------------------
-open_clientfd -> connect                wait for connection
-send file in chunks                    accept connection
------------------------------------------------
-write chunk -> send                    read chunk -> receive
------------------------------------------------
-write chunk -> send                    write to file
------------------------------------------------
-close connection                       close connection
-\end{verbatim}
+The system consists of two components:
+\begin{enumerate}
+    \item \textbf{Server:} Hosts the files and serves client requests. Runs continuously and manages multiple clients using threads.
+    \item \textbf{Client:} Connects to the server, lists available files, downloads files, and exits when done.
+\end{enumerate}
 
 \clearpage
-\section{Code Implementation}
-
-\subsection{Client Code}
-Below is the Python code for the client that reads a file and sends it to the server.
+\subsection{System Organization Diagram}
 
 \begin{verbatim}
-import socket
++--------------------+       TCP Connection       +--------------------+
+|      Client        |--------------------------->|       Server       |
+|                    |                            |                    |
+|  1. Create Socket  |<---------------------------|  1. Create Socket  |
+|  2. Connect        |                            |  2. Bind & Listen  |
+|                    |         File List          |                    |
+|  3. Display List   |<---------------------------|  3. Send File List |
+|  4. Request File   |                            |                    |
+|--------------------|         File Data          |                    |
+|      File Data     |<---------------------------|  4. Transfer File  |
+|  5. Save File      |                            |                    |
+|  6. Exit Session   |--------------------------->|  5. Close Socket   |
++--------------------+                            +--------------------+
+\end{verbatim}
 
-SERVER_HOST = '127.0.0.1'  
-SERVER_PORT = 5001       
-BUFFER_SIZE = 1024        
-INPUT_FILE = "example.jpg" 
+\section{File Transfer Implementation}
+The server and client are implemented using Python's \texttt{socket} library. Code snippets of the implementation are shown below.
 
-def send_file():
+\subsection{Server Code}
+\begin{lstlisting}[language=Python, caption={Server File Handling}]
+def handle_client(client_socket, client_address):
+    files = os.listdir(SERVER_DIRECTORY)
+    file_list = "\n".join(files)
+    client_socket.send(file_list.encode())
+
+    while True:
+        requested_file = client_socket.recv(BUFFER_SIZE).decode().strip()
+        if requested_file.lower() == 'exit':
+            break
+
+        file_path = os.path.join(SERVER_DIRECTORY, requested_file)
+        if os.path.exists(file_path):
+            client_socket.send("OK".encode())
+            with open(file_path, 'rb') as f:
+                while chunk := f.read(BUFFER_SIZE):
+                    client_socket.send(chunk)
+        else:
+            client_socket.send("ERROR: File not found.".encode())
+
+    client_socket.close()
+\end{lstlisting}
+
+\clearpage
+\subsection{Client Code}
+\begin{lstlisting}[language=Python, caption={Client File Request}]
+def start_client():
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((SERVER_HOST, SERVER_PORT))
-    print(f"[*] Connected to {SERVER_HOST}:{SERVER_PORT}")
 
-    with open(INPUT_FILE, "rb") as f:
-        print(f"[*] Sending {INPUT_FILE}...")
-        while (data := f.read(BUFFER_SIZE)):
-            client_socket.sendall(data)
+    file_list = client_socket.recv(BUFFER_SIZE).decode()
+    print("Available files:\n" + file_list)
 
-    print("[+] File sent successfully.")
-    
-    client_socket.close()
-    print("[*] Connection closed.")
+    while True:
+        requested_file = input("Enter the file name to download (or 'exit' to quit): ").strip()
+        client_socket.send(requested_file.encode())
+        if requested_file.lower() == 'exit':
+            break
 
-if __name__ == "__main__":
-    send_file()
-
-\end{verbatim}
-
-\clearpage
-\subsection{Server Code}
-Below is the Python code for the server that listens for incoming connections and saves the received file.
-
-\begin{verbatim}
-import socket
-
-SERVER_HOST = '0.0.0.0' 
-SERVER_PORT = 5001       
-BUFFER_SIZE = 1024       
-OUTPUT_FILE = "received_example.jpg"  
-
-def start_server():
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_socket.bind((SERVER_HOST, SERVER_PORT))
-    server_socket.listen(1)
-    print(f"[*] Listening on {SERVER_HOST}:{SERVER_PORT}...")
-
-    client_socket, client_address = server_socket.accept()
-    print(f"[+] Accepted connection from {client_address}")
-
-    with open(OUTPUT_FILE, "wb") as f:
-        print("[*] Receiving file...")
-        while True:
-            data = client_socket.recv(BUFFER_SIZE)
-            if not data:
-                break
-            f.write(data)
-
-    print(f"[+] File received and saved as {OUTPUT_FILE}")
+        response = client_socket.recv(BUFFER_SIZE).decode()
+        if response == "OK":
+            file_path = os.path.join(CLIENT_DIRECTORY, requested_file)
+            with open(file_path, 'wb') as f:
+                while chunk := client_socket.recv(BUFFER_SIZE):
+                    f.write(chunk)
+        else:
+            print(response)
 
     client_socket.close()
-    server_socket.close()
-    print("[*] Connection closed.")
+\end{lstlisting}
 
-if __name__ == "__main__":
-    start_server()
-\end{verbatim}
-
-\clearpage
-\section{Who Does What}
+\section{Responsibilities}
 \begin{itemize}
-    \item \textbf{Client:}
-    \begin{itemize}
-        \item Opens the file to be sent.
-        \item Establishes a TCP connection to the server.
-        \item Sends the file in chunks (1024 bytes).
-        \item Closes the connection after sending the file.
-    \end{itemize}
-    \item \textbf{Server:}
-    \begin{itemize}
-        \item Listens for incoming client connections.
-        \item Receives the file in chunks.
-        \item Writes the received chunks to the disk.
-        \item Closes the connection once the file transfer is complete.
-    \end{itemize}
+    \item \textbf{Server:} Handles client connections, provides the list of files, and sends requested files.
+    \item \textbf{Client:} Lists available files, requests files for download, and manages local storage.
 \end{itemize}
-
-\section{Conclusion}
-This implements a simple file transfer protocol over TCP/IP using sockets. The client sends the file in chunks, and the server receives the file and stores it on disk. This basic implementation can be extended with additional features such as file validation, error handling, and encryption to secure file transfers.
 
 \end{document}
