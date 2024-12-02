@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+service FileTransfer {
+  // List available files on the server
+  rpc ListFiles(Empty) returns (FileList);
+
+  // Download a specific file
+  rpc DownloadFile(FileRequest) returns (stream FileChunk);
+}
+
+message Empty {}
+
+message FileList {
+  repeated string filenames = 1;
+}
+
+message FileRequest {
+  string filename = 1;
+}
+
+message FileChunk {
+  bytes content = 1;
+}
