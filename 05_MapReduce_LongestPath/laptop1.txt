@@ -1,0 +1,4 @@
+/Users/Desktop/new folder/hello_world.txt
+/Users/Document/probability
+/Users/Music/Touhou
+/C:/Users/photos/vacation/photo1.jpg
