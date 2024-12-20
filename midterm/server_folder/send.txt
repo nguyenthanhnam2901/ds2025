@@ -1,0 +1,4 @@
+example1 example2 example3 example4 example5 example6 example7 example8
+mpiexec -n 2 python working.py
+mpiexec -n 4 python working.py
+huh huh?
