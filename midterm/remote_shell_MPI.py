@@ -4,6 +4,9 @@ import os
 import sys
 import time
 import select
+
+# mpiexec -n 4 python remote_shell_MPI.py
+
 def server_process(comm, size):
    """Server process that handles multiple client commands"""
    print(f"\n[Server] Started on rank 0")
