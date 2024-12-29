@@ -9,27 +9,29 @@ Run the script:
 ./setup.sh.
 '
 
-# Define the environment name
-env_name="myenv"
-
 # Prompt the user for environment setup
-read -p "Do you want to create a new virtual environment named '$env_name' or use an existing one? (new/existing): " env_choice
+read -p "Do you want to create a new virtual environment or use an existing one? (new/existing): " env_choice
 
 if [ "$env_choice" == "new" ]; then
+    # Define the environment name
+    read -p "Enter the name for the new environment: " env_name
     echo "Creating a new virtual environment named '$env_name'..."
     python3 -m venv "$env_name"
     if [ $? -ne 0 ]; then
         echo "Error: Failed to create the virtual environment. Ensure Python 3 is installed."
         exit 1
     fi
-fi
-
-# Activate the environment
-if [ -d "$env_name" ]; then
-    source "$env_name/bin/activate"
-    echo "Activated environment: $env_name"
+elif [ "$env_choice" == "existing" ]; then
+    read -p "Enter the full path to the existing virtual environment: " env_path
+    if [ -d "$env_path" ]; then
+        source "$env_path/bin/activate"
+        echo "Activated existing environment at: $env_path"
+    else
+        echo "Error: The specified path '$env_path' does not exist. Please check and try again."
+        exit 1
+    fi
 else
-    echo "Error: The environment '$env_name' does not exist. Please create it first."
+    echo "Invalid choice. Please enter 'new' or 'existing'."
     exit 1
 fi
 
