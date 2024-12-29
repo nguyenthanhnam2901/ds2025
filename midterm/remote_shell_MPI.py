@@ -7,9 +7,12 @@ import time
 import subprocess
 import uuid
 
-# Can only run in Linux.
-# Require: mpi4py, xterm, bash
-# mpiexec -n 4 remote_shell_MPI.py
+'''
+Can only run in Linux.
+Require: mpi4py, xterm, bash
+Run:
+mpiexec -n 4 remote_shell_MPI.py
+'''
 
 def run_server(comm, size):
     # Create a unique server directory to prove command execution
