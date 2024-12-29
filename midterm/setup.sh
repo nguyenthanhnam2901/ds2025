@@ -2,12 +2,23 @@
 
 : '
 File name: 
-setup.sh.
+setup.sh
 Make it executable: 
-chmod +x setup.sh.
+chmod +x setup.sh
 Run the script: 
-./setup.sh.
+./setup.sh
 '
+
+# Check if Python is installed
+if ! command -v python3 &> /dev/null; then
+    echo "Python3 is not installed. Installing Python3..."
+    sudo apt update
+    sudo apt install -y python3 python3-venv python3-pip
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to install Python3. Please install Python3 manually and rerun the script."
+        exit 1
+    fi
+fi
 
 # Prompt the user for environment setup
 read -p "Do you want to create a new virtual environment or use an existing one? (new/existing): " env_choice
