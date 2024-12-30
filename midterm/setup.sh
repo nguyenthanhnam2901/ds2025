@@ -108,7 +108,7 @@ import uuid
 Can only run in Linux.
 Require: mpi4py, xterm, bash
 Run:
-mpiexec -n 4 remote_shell_MPI.py
+mpiexec -n 4 python remote_shell_MPI.py
 '''
 
 def run_server(comm, size):
